@@ -1,0 +1,168 @@
+/* Import Google Font (AniList uses Inter, similar to Nunito) */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap');
+
+/* General Body Styles */
+body {
+  font-family: 'Nunito', sans-serif;
+  background-color: #0a0a10; /* Dark theme background */
+  color: #ffffff;
+  margin: 0;
+  padding: 0;
+  display: block;
+}
+
+/* Header Bar (Glassmorphism) */
+.header-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 80px;
+  background: rgba(15, 15, 25, 0.8); /* Semi-transparent */
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+  z-index: 100;
+}
+
+/* Heading */
+h1 {
+  text-align: center;
+  color: #ffffff;
+  margin-top: 100px; /* Adjusted for fixed header */
+}
+
+/* Tabs for Seasons */
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin: 20px auto;
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.tab {
+  padding: 12px 18px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: white;
+  font-weight: bold;
+  transition: all 0.3s ease-in-out;
+}
+
+.tab:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.tab.active {
+  background: #007acc; /* AniList-style blue */
+  color: white;
+}
+
+/* Anime Cards Grid Layout */
+.anime-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px;
+  justify-content: center;
+  padding: 20px;
+  max-width: 90%;
+  margin: 0 auto;
+}
+
+/* Anime Card Styles */
+.anime-card {
+  background: rgba(255, 255, 255, 0.1); /* Glass effect */
+  border-radius: 15px;
+  padding: 15px;
+  text-align: center;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+  position: relative;
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+
+.anime-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* Card Title */
+.anime-card h3 {
+  font-size: 18px;
+  margin: 10px 0;
+  color: white;
+  font-weight: bold;
+}
+
+/* Buttons inside Anime Cards */
+.button {
+  display: inline-block;
+  padding: 10px 15px;
+  margin: 5px;
+  background: #007acc;
+  color: white;
+  text-decoration: none;
+  border-radius: 10px;
+  font-weight: bold;
+  transition: background 0.3s ease-in-out;
+}
+
+.button:hover {
+  background: #005f99;
+}
+
+/* Video Container Styling (applies to all screen sizes) */
+.iframe-container {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+}
+
+.video-wrapper {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+  overflow: hidden;
+  border-radius: 10px;
+  background-color: #000;
+}
+
+.video-thumbnail,
+.iframe-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+/* Optional: Slight fade on hover */
+.video-thumbnail:hover {
+  opacity: 0.85;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .anime-container {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .tabs {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .anime-card {
+    width: 90%;
+  }
+}
