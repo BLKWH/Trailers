@@ -1,6 +1,11 @@
 /* Import Google Font (AniList uses Inter, similar to Nunito) */
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap');
 
+/* Prevent horizontal scrolling globally */
+html, body {
+  overflow-x: hidden;
+}
+
 /* General Body Styles */
 body {
   font-family: 'Nunito', sans-serif;
@@ -9,6 +14,114 @@ body {
   margin: 0;
   padding: 0;
   display: block;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+/* Mass Update System Styles */
+#mass-update-container {
+  font-family: 'Nunito', sans-serif;
+}
+
+.data-debug-panel {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Compact debug panel mode: small footprint and lower z-index so it doesn't block central UI on narrow screens */
+.data-debug-panel.compact-debug {
+  bottom: auto !important;
+  top: 70px !important;
+  left: 8px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  padding: 6px !important;
+  border-radius: 8px !important;
+  z-index: 1100 !important; /* below nav arrows (1200) */
+  overflow: hidden !important;
+  background: rgba(0,0,0,0.5) !important;
+}
+
+.data-debug-panel.compact-debug .debug-buttons,
+.data-debug-panel.compact-debug #mass-update-status,
+.data-debug-panel.compact-debug .debug-title,
+.data-debug-panel.compact-debug #proxy-save-results {
+  display: none !important;
+}
+
+/* Also automatically apply compact mode for narrow viewports as a safety fallback */
+@media (max-width: 900px) {
+  .data-debug-panel {
+    bottom: auto !important;
+    top: 70px !important;
+    left: 8px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 6px !important;
+    border-radius: 8px !important;
+    z-index: 1100 !important;
+    overflow: hidden !important;
+    background: rgba(0,0,0,0.5) !important;
+  }
+  .data-debug-panel .debug-buttons,
+  .data-debug-panel #mass-update-status,
+  .data-debug-panel .debug-title,
+  .data-debug-panel #proxy-save-results { display: none !important; }
+}
+
+.data-debug-panel:hover {
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+
+.debug-title {
+  pointer-events: none;
+}
+
+#mass-update-container button {
+  font-family: inherit;
+  font-size: 11px;
+  transition: all 0.2s ease;
+  transform: scale(1);
+}
+
+#mass-update-container button:hover {
+  transform: scale(1.05) translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+#mass-update-container button:active {
+  transform: scale(0.98);
+}
+
+#hide-debug-btn {
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#mass-update-overlay {
+  font-family: 'Nunito', sans-serif;
+}
+
+#mass-update-overlay h2 {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 20px 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+#mass-update-progress {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#mass-update-progress-bar {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+}
+
+#mass-update-status-text {
+  font-size: 16px;
+  color: #ccc;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 /* Header Bar (Glassmorphism) */
@@ -16,52 +129,155 @@ body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 80px;
-  background: rgba(15, 15, 25, 0.8); /* Semi-transparent */
+  width: 100%;
+  height: 60px;
+  background: rgba(15, 15, 25, 0.8);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  font-weight: bold;
+  gap: 30px;
+  padding: 0 20px;
   z-index: 100;
+  box-sizing: border-box; /* Include padding in width calculation */
 }
 
-/* Heading */
-h1 {
-  text-align: center;
-  color: #ffffff;
-  margin-top: 100px; /* Adjusted for fixed header */
-}
-
-/* Tabs for Seasons */
-.tabs {
-  display: flex;
-  gap: 10px;
-  margin: 20px auto;
+/* When in studio mode, center button to align with content */
+.header-bar.studio-mode {
   justify-content: center;
-  padding: 10px 0;
+  gap: 0;
+  padding: 0; /* Remove horizontal padding for perfect centering */
+}
+
+.header-bar.studio-mode > *:not(#backToViewerBtn) {
+  display: none !important;
+}
+
+.header-bar.studio-mode #backToViewerBtn {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+/* Year Select Styling */
+.year-select select {
+  background: #007acc;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  padding: 8px 16px;
+  font-size: 16px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.year-select select:hover {
+  background: #0098ff;
+}
+
+.year-select select option {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+/* Season Tabs in Header */
+.season-tabs {
+  display: flex;
+  gap: 8px;
 }
 
 .tab {
-  padding: 12px 18px;
+  padding: 8px 16px;
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  background: #007acc;
+  border-radius: 8px;
   color: white;
-  font-weight: bold;
-  transition: all 0.3s ease-in-out;
+  font-weight: 500;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  opacity: 0.7;
 }
 
 .tab:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: #0098ff;
+  border-color: rgba(255, 255, 255, 0.2);
+  opacity: 0.85;
 }
 
 .tab.active {
-  background: #007acc; /* AniList-style blue */
+  background: #0098ff;
+  border-color: rgba(255, 255, 255, 0.3);
+  opacity: 1;
+}
+
+/* Mode Toggle Button */
+.mode-toggle {
+  background: #007acc;
   color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.mode-toggle:hover {
+  background: #0098ff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.mode-toggle:disabled {
+  background: #666;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+#diagnosticBtn {
+  background: #2196F3;
+  font-size: 14px;
+  padding: 6px 12px;
+}
+
+#diagnosticBtn:hover:not(:disabled) {
+  background: #1976D2;
+}
+
+/* Loading message styling */
+.loading-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: #e0e0e0;
+}
+
+.loading-message h3 {
+    color: #ffffff;
+    margin-bottom: 10px;
+    font-size: 24px;
+}
+
+.loading-message p {
+    margin: 10px 0;
+    font-size: 16px;
+}
+
+.loading-message small {
+    color: #aaa;
+    font-size: 14px;
+}
+
+.loading-spinner {
+    font-size: 32px;
+    margin: 20px 0;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
 }
 
 /* Anime Cards Grid Layout */
@@ -72,7 +288,7 @@ h1 {
   justify-content: center;
   padding: 20px;
   max-width: 90%;
-  margin: 0 auto;
+  margin: 140px auto 0;  /* Increased top margin, auto left/right, 0 bottom */
 }
 
 /* Anime Card Styles */
@@ -166,3 +382,1333 @@ h1 {
     width: 90%;
   }
 }
+.hidden {
+  display: none;
+}
+
+.viewer-layout {
+  display: flex;
+  align-items: flex-start; /* Changed from center to flex-start */
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.side-embed {
+  width: 20%;
+  height: 400px;
+  border: none;
+  margin: 0 10px;
+}
+
+.viewer-layout .trailer-container {
+  /* Increased trailer size: raise flex share and max-width to make the
+     trailer approximately 50% larger while keeping it responsive and
+     preventing horizontal scroll. */
+  flex: 3 1 0; /* increased from 2 -> 3 to grant ~50% more flex space */
+  /* Use a responsive cap: no wider than 90vw but no more than 1500px */
+  width: 100%;
+  max-width: 1500px; /* larger hard cap but gated by width:min() to avoid overflow */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative; /* allow absolutely positioned nav arrows inside */
+  /* Desired trailer height: use a viewport-based value so trailer occupies
+     ~60-70% of the viewport. This keeps a fixed visual height independent of
+     subtitle length. Change --trailer-height in media queries if needed. */
+  --trailer-height: 65vh;
+  height: var(--trailer-height);
+  min-height: var(--trailer-height); /* prevent shrinking below the set trailer height */
+  flex-shrink: 0; /* do not allow adjacent content (subtitle) to shrink/expand layout */
+}
+
+.trailer-container iframe {
+  /* Make iframe fill the trailer container height while keeping a fixed
+     16:9 aspect ratio by constraining width with calc(height * 16/9). The
+     min/max guards prevent overflow on very narrow or very wide screens. */
+  height: 100%;
+  width: min(90vw, calc(var(--trailer-height) * (16 / 9)) );
+  max-width: 1500px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+/* Nav arrows positioned inside the trailer so they float above video and are
+   immune to subtitle/title length changes */
+.nav-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 300; /* above iframe */
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.08);
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.6);
+}
+.nav-arrow.left { left: 14px; }
+.nav-arrow.right { right: 14px; }
+.nav-arrow:active { transform: translateY(-50%) scale(0.98); }
+
+/* Small inline nav arrows used beside the counter */
+.nav-arrow.small {
+  /* Restore the prominent overlay look but sized for inline placement */
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  transform: none;
+  margin: 0 8px;
+  background: rgba(0,0,0,0.55);
+  z-index: 1200; /* above normal content */
+  box-shadow: 0 6px 18px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.viewer-controls { display:flex; align-items:center; justify-content:center; gap:12px; z-index:1200; }
+
+
+.viewer-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  margin: 20px auto;
+  max-width: 400px;
+}
+
+.show-counter {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 8px 16px;
+  border-radius: 20px;
+  min-width: 60px;
+  text-align: center;
+  backdrop-filter: blur(5px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  pointer-events: auto;
+}
+
+#viewerTitle {
+  text-align: center;
+  /* Increased ~12% for better readability */
+  font-size: 1.4rem;
+  margin: 100px 0 20px;
+}
+
+.viewer-controls button {
+  background: #2c2c2c;
+  border: 2px solid #555;
+  color: white;
+  font-size: 1.8rem;
+  cursor: pointer;
+  padding: 12px 20px;
+  border-radius: 50%;
+  line-height: 1;
+  transition: all 0.2s ease;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.viewer-controls button:hover {
+  background: #444;
+  border-color: #777;
+  transform: scale(1.05);
+}
+
+/* Full List Modal: tighten grid so show names aren't too spread out */
+#fullListModal .list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 36px 14px; /* row-gap ~ half box (36px), column-gap 14px */
+  align-items: start;
+}
+
+#fullListModal .anime-item {
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+#fullListModal .anime-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+}
+
+/* Enforce consistent box sizing so titles of different lengths don't resize items */
+#fullListModal .anime-item {
+  /* Modal-specific item sizing overrides the global .anime-item rules */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  box-sizing: border-box;
+  height: 72px; /* fixed height so all boxes match */
+  margin: 0; /* remove global large margins */
+  padding: 8px 10px; /* slightly smaller padding to fit height */
+  overflow: hidden;
+}
+
+#fullListModal .anime-item h3 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* clamp to two lines */
+  line-clamp: 2; /* standard line clamp property */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+@keyframes buttonClick {
+  0% { 
+    background: rgba(0, 0, 0, 1);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+  }
+  50% {
+    background: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.8);
+  }
+  100% { 
+    background: rgba(0, 0, 0, 0.6);
+    box-shadow: none;
+  }
+}
+
+.viewer-controls button.clicked {
+  animation: buttonClick 0.3s ease-out;
+}
+.side-info {
+  width: 20%;
+  height: 720px; /* Back to fixed height to match trailer */
+  margin: 0 10px;
+  background: rgba(255,255,255,0.05);
+  padding: 15px 10px; /* More top/bottom padding */
+  overflow-y: auto;
+  overflow-x: hidden; /* Prevent horizontal overflow */
+  font-size: 0.9rem;
+  color: white;
+  border-radius: 8px;
+  box-sizing: border-box;
+  /* Add subtle styling for better appearance */
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(5px);
+  /* Ensure content fits properly */
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Studio info container styling for equal button spacing */
+#studioInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: visible;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 0; /* Add vertical padding */
+  justify-content: flex-start; /* Align content to top */
+}
+
+#studioInfo h3,
+#studioInfo h4 {
+  margin: 0 0 15px; /* Slightly more margin */
+  color: white;
+  font-size: 1rem;
+  line-height: 1.3;
+  text-align: center;
+  width: 100%;
+}
+
+#studioInfo .studio-btn {
+  margin: 6px 0 !important; /* Slightly more spacing */
+  width: 90%;
+  max-width: 180px;
+  box-sizing: border-box;
+}
+
+/* Studio item centering */
+#studioInfo .studio-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start; /* Changed from center to flex-start */
+  width: 100%;
+  padding: 5px 0; /* Add some padding */
+}
+
+/* Ensure staff container has consistent h4 styling and matches studio container */
+#anilistInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: visible;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 0; /* Add vertical padding */
+  justify-content: flex-start; /* Align content to top */
+}
+
+#anilistInfo h4 {
+  margin: 0 0 15px; /* Slightly more margin to match studio container */
+  color: white;
+  font-size: 1rem;
+  line-height: 1.3;
+  text-align: center;
+  width: 100%;
+}
+
+#anilistInfo .staff-link {
+  margin: 4px 0 !important; /* Reduced spacing to fit more */
+  width: 100%; /* Full width instead of 90% */
+  max-width: none; /* Remove max-width restriction */
+  box-sizing: border-box;
+  padding: 8px 6px; /* Smaller padding */
+  font-size: 0.85rem; /* Slightly smaller font */
+  line-height: 1.2; /* Tighter line height */
+  text-align: center;
+  word-wrap: break-word; /* Break long names */
+  overflow-wrap: break-word;
+}
+
+/* Studio View Styles */
+.studio-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 100px 20px 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.staff-header {
+  margin: 100px 20px 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  text-align: center;
+}
+
+.studio-header h2, .staff-header h2 {
+  margin: 0;
+  color: white;
+  font-size: 2rem;
+  text-align: center;
+}
+
+.studio-works, .staff-works {
+  padding: 0 20px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.studio-works .anime-container, .staff-works .anime-container {
+  display: block;
+  grid-template-columns: none;
+  gap: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.year-section {
+  margin-bottom: 40px;
+  width: 100%;
+  display: block;
+}
+
+.year-header {
+  color: white;
+  font-size: 1.5rem;
+  margin: 0 0 20px 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  width: 100%;
+  display: block;
+}
+
+.year-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 200px));
+  gap: 15px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  justify-content: start;
+}
+
+.studio-anime-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform 0.3s ease;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.studio-anime-card:hover {
+  transform: translateY(-5px);
+}
+
+.anime-poster {
+  width: 100%;
+  height: 280px;
+  overflow: hidden;
+}
+
+.anime-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.anime-info {
+  padding: 15px;
+}
+
+.anime-info h4 {
+  margin: 0 0 10px;
+  color: white;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.anime-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.anime-type {
+  margin: 0;
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
+.anime-scores {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  color: #ffd700;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.score-values {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 60px;
+}
+
+.score-row {
+  white-space: nowrap;
+  line-height: 1.1;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.score-row.popularity {
+  color: #00b4d8;
+  font-size: 0.8rem;
+}
+
+.score-row span:first-child {
+  text-align: right;
+  min-width: 35px;
+}
+
+.anime-year {
+  margin: 5px 0 0;
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
+/* Co-production styling */
+.co-production {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: #888;
+  line-height: 1.3;
+}
+
+.co-studios {
+  color: #0098ff;
+  font-weight: 500;
+}
+
+.loading, .no-results {
+  text-align: center;
+  color: white;
+  font-size: 1.2rem;
+  padding: 40px 20px;
+  margin: 0;
+}
+
+.clickable:hover {
+  color: #0098ff !important;
+}
+
+/* Media filter toggle for staff view */
+.media-filter {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.filter-buttons {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.filter-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 16px;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.filter-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.filter-btn.active {
+  background: #0098ff;
+  color: white;
+}
+
+/* Media type badge for manga */
+.media-type-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #ff6b35;
+  color: white;
+  font-size: 0.7em;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.anime-poster {
+  position: relative;
+}
+
+/* Staff View Scroll Reset */
+#staffView {
+  position: relative;
+  top: 0 !important;
+  margin-top: 0 !important;
+  scroll-behavior: auto !important;
+}
+
+#staffView.staff-view-active {
+  transform: translateY(0) !important;
+  position: relative !important;
+  top: 0 !important;
+}
+
+/* Full List Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: none; /* Hidden by default */
+  align-items: center;
+  justify-content: center;
+  z-index: 100001;
+  backdrop-filter: blur(5px);
+}
+
+.modal.hidden {
+  display: none !important;
+}
+
+.modal:not(.hidden) {
+  display: flex;
+}
+
+.modal-content {
+  background: #1a1a1a;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid #333;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 2px solid #333;
+  background: #2a2a2a;
+  border-radius: 8px 8px 0 0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.5rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #ccc;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+
+
+/* Schedule modal body: allow both-axis scrolling on the modal body so the
+   horizontal scrollbar is attached to the outside (same place vertical
+   scrollbar appears). Reserve gutter space so scrollbars don't overlap
+   content when they appear. */
+#scheduleModalBody {
+  max-height: 60vh;
+  overflow: auto; /* allow both vertical and horizontal scrolling on the outer container */
+  scrollbar-gutter: stable both-edges; /* reserve space for scrollbars so they're always accessible */
+}
+
+/* Schedule grid styling: make the inner grid expand horizontally (so the
+   outer container shows the horizontal scrollbar) and avoid adding an
+   internal horizontal scrollbar on the grid itself. */
+.schedule-grid {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 8px 0;
+  overflow-x: visible; /* let the outer container handle horizontal scrolling */
+  min-width: max-content; /* ensure the grid grows to its content width to trigger outer scroll */
+}
+.schedule-column {
+  min-width: 220px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 8px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+.schedule-date-header {
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+.schedule-item { 
+  padding: 6px 6px;
+  margin-bottom: 6px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.2);
+}
+
+/* Prevent long titles/subtitles from expanding layout: clamp and ellipsis */
+.schedule-item-title,
+.schedule-item-subtitle,
+.anime-card h3,
+.studio-anime-card .anime-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap; /* single-line ellipsis */
+  max-width: 100%;
+}
+
+/* For smaller screens, allow 2-line clamp to keep readability */
+@media (max-width: 900px) {
+  .schedule-item-title,
+  .schedule-item-subtitle,
+  .anime-card h3,
+  .studio-anime-card .anime-title {
+    white-space: normal;
+    display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Responsive enhancements: make layout adapt smoothly to different resolutions */
+/* Header: allow wrapping and reduce height on small screens */
+.header-bar {
+  flex-wrap: wrap;
+  height: auto;
+  padding: 8px 12px;
+}
+.header-bar > * {
+  flex: 0 1 auto;
+}
+
+/* Viewer layout: switch to column on small screens and make side panels collapse */
+.viewer-layout {
+  gap: 16px;
+  padding: 0 12px;
+  max-width: 1200px; /* cap overall viewer width to avoid overflow */
+  margin: 0 auto; /* center the viewer area; top spacing is reserved by #animeViewer padding */
+  box-sizing: border-box;
+}
+
+/* Reserve space for the independent header so when the header is positioned
+   absolutely it doesn't overlay the trailer content. Adjust in media queries
+   for smaller screens. */
+#animeViewer {
+  position: relative;
+  padding-top: 84px; /* reserve room for header (desktop) */
+}
+
+.viewer-layout .trailer-container {
+  /* Ensure a single, consistent rule for trailer sizing (matches the primary rule).
+     Use flex:3 and a responsive width cap so the trailer grows but never overflows. */
+  flex: 3 1 0;
+  width: min(90vw, 1500px);
+  max-width: 1500px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.side-info, .side-embed {
+  /* Fixed-width side panels so long content scrolls internally instead of expanding layout */
+  flex: 0 0 300px;
+  max-width: 320px;
+  min-width: 220px;
+}
+
+/* Subtitle in viewer — clamp so it doesn't push layout down */
+.viewer-subtitle, #viewerSubtitle {
+  color: #ccc;
+  /* Increased ~12% to match title scale */
+  font-size: 1.02rem;
+  margin-top: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* allow up to 2 lines */
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  white-space: normal;
+  /* Ensure subtitle sits centered below the main viewer area */
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+/* Each subtitle line rendered by JS will be a block so short lines don't collapse.
+   We use inline-block to allow centering and preserve clamping via the parent -webkit-box. */
+.viewer-subtitle-line {
+  display: block;
+  width: 100%;
+}
+
+/* Fallback: in narrow layouts make subtitle a single line */
+@media (max-width: 900px) {
+  .viewer-subtitle { -webkit-line-clamp: 1; line-clamp: 1; }
+}
+
+/* Independent viewer header that does not affect the trailer container's layout
+   It's sized and positioned above the viewer layout; trailer and nav buttons
+   remain vertically centered unaffected by title/subtitle length. */
+.viewer-header {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 18px;
+  display: flex;
+  justify-content: center;
+  position: absolute; /* take header out of normal flow so it won't push the trailer */
+  left: 0;
+  right: 0;
+  top: 12px;
+  z-index: 20000; /* raised so header appears over the trailer and related chrome but below full-screen modals (100001) */
+  background: transparent;
+  /* Fixed header height so subtitle length doesn't change document flow */
+  --viewer-header-height: 96px;
+  height: var(--viewer-header-height);
+  overflow: hidden; /* clip any subtitle overflow so it doesn't push layout */
+}
+.viewer-header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: auto; /* re-enable interactions for header inner */
+  height: 100%;
+}
+#viewerTitle .viewer-title-text,
+.viewer-title-text {
+  display: block;
+  font-weight: 600;
+  color: inherit;
+}
+#viewerTitle, .viewer-subtitle {
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+}
+#viewerTitle {
+  font-size: 1.25rem;
+  margin: 0;
+  padding: 0;
+  color: #fff;
+  line-height: 1.2;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal; /* allow wrapping but center it */
+  text-align: center;
+}
+
+@media (max-width: 800px) {
+  #viewerTitle { font-size: 1rem; max-width: 100%; }
+  /* Reduce header height on small screens */
+  .viewer-header { padding: 8px 12px; top: 8px; --viewer-header-height: 72px; height: var(--viewer-header-height); }
+  #animeViewer { padding-top: 56px; }
+}
+
+/* Make anime grid fluid */
+.anime-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 100px auto 0;
+}
+
+/* Modal sizing tweaks for small screens */
+.modal-content {
+  width: 95%;
+  max-width: 1000px;
+}
+
+/* Schedule columns become narrower on small screens and grid scrolls horizontally */
+.schedule-column { min-width: 180px; }
+
+/* Breakpoints */
+@media (max-width: 1200px) {
+  .side-info, .side-embed { flex: 0 0 28%; min-width: 160px; }
+  .anime-card { max-width: 260px; }
+}
+
+@media (max-width: 900px) {
+  /* Stack viewer components vertically */
+  .viewer-layout { flex-direction: column; align-items: stretch; margin-top: 10px; }
+  .side-info, .side-embed { width: 100%; flex: 0 0 auto; max-width: 100%; height: auto; }
+  .video-wrapper { padding-bottom: 56.25%; }
+  .anime-container { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 18px; margin-top: 140px; }
+  .header-bar { gap: 10px; justify-content: space-between; }
+  .tab, .mode-toggle, .year-select select { font-size: 14px; padding: 6px 10px; }
+  .viewer-controls { gap: 1rem; max-width: 320px; }
+  .schedule-column { min-width: 150px; }
+
+  /* Reduce the trailer height on narrower screens so it doesn't dominate the viewport */
+  .viewer-layout .trailer-container { --trailer-height: 55vh; height: var(--trailer-height); }
+  .nav-arrow { width: 48px; height: 48px; }
+}
+
+@media (max-width: 480px) {
+  .anime-container { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 120px; }
+  #viewerTitle { font-size: 1.3rem; margin: 80px 0 16px; }
+  .anime-card h3 { font-size: 14px; }
+  .viewer-controls button { width: 44px; height: 44px; font-size: 1.2rem; }
+  .schedule-column { min-width: 140px; }
+  .modal-content { max-width: 95%; padding: 12px; }
+}
+
+/* High-DPI / large screens: give more breathing room */
+@media (min-width: 1600px) {
+  .anime-container { max-width: 1600px; gap: 36px; }
+  .anime-card { max-width: 360px; }
+  .schedule-column { min-width: 240px; }
+}
+.schedule-item-title a { color: #9ae6ff; text-decoration: none; }
+.schedule-item-title { font-weight: 600; color: #fff; }
+.schedule-item-meta { font-size: 0.8rem; color: #cfcfcf; }
+
+.list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.8rem;
+}
+
+.anime-item {
+  margin: 140px auto 0;  /* Increased top margin, auto left/right, 0 bottom */
+  z-index: 10; /* keep under overlays */
+  border: 2px solid #444;
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.anime-item:hover {
+  background: #3a3a3a;
+  border-color: #666;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.anime-item h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+/* Loading screen styles */
+.loading-blur {
+  filter: blur(5px) brightness(0.3);
+  pointer-events: none;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(2px);
+}
+
+.loading-content {
+  text-align: center;
+  color: white;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-content h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+}
+
+.loading-content p {
+  margin: 0;
+  opacity: 0.8;
+}
+
+/* Simplified scroll reset for staff and studio views */
+body.staff-view-mode,
+body.studio-view-mode {
+  scroll-behavior: auto !important;
+  overflow-anchor: none !important;
+}
+
+#staffView.staff-view-active,
+#studioView.studio-view-active {
+  position: relative !important;
+  top: 0 !important;
+  scroll-behavior: auto !important;
+}
+
+/* Staff link styling */
+.staff-link {
+  color: #3db4f2 !important;
+  text-decoration: none;
+  font-weight: 500;
+  border: 1px solid #3db4f2;
+  padding: 6px 12px;
+  border-radius: 4px;
+  display: inline-block;
+  transition: all 0.2s ease;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.staff-link:hover {
+  background-color: #3db4f2;
+  color: #0a0a10 !important;
+}
+
+/* Studio button specific styling */
+.studio-btn {
+  background-color: #f23d3d !important;
+  border-color: #f23d3d !important;
+  color: white !important;
+  padding: 9px 18px !important;
+  font-size: 14.4px !important;
+  font-weight: 600 !important;
+}
+
+.studio-btn:hover {
+  background-color: #d63031 !important;
+  border-color: #d63031 !important;
+}
+
+/* Staff button specific styling */
+.staff-btn {
+  background-color: #00b894 !important;
+  border-color: #00b894 !important;
+  color: white !important;
+}
+
+.staff-btn:hover {
+  background-color: #009579 !important;
+  border-color: #009579 !important;
+}
+
+/* Staff member display styling */
+.staff-member {
+  margin: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.staff-member strong {
+  min-width: 100px;
+  color: #a0a0a0;
+  font-size: 13px;
+}
+
+.staff-name-btn {
+  background-color: #3db4f2 !important;
+  border-color: #3db4f2 !important;
+  color: white !important;
+  padding: 4px 8px !important;
+  font-size: 13px !important;
+  border-radius: 3px !important;
+}
+
+.staff-name-btn:hover {
+  background-color: #2980b9 !important;
+  border-color: #2980b9 !important;
+}
+
+.staff-reference {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.staff-reference a {
+  color: #a0a0a0;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.staff-reference a:hover {
+  color: #3db4f2;
+}
+
+/* Loading state styling */
+.loading-staff {
+  color: #a0a0a0;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* Staff Role Cards with Thumbnails */
+.roles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+  padding: 20px 0;
+}
+
+/* Year-based layout for staff roles (AniList style) */
+.year-section {
+  margin-bottom: 30px;
+}
+
+.year-header {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #3db4f2;
+  margin: 0 0 15px 0;
+  padding: 10px 0;
+  border-bottom: 2px solid #333;
+}
+
+.year-anime-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+  padding: 0;
+}
+
+.role-card-staff {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transform: scale(1.15);
+  margin: 8px;
+}
+
+.role-card-staff:hover {
+  transform: scale(1.15) translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.anime-thumbnail {
+  width: 100%;
+  height: 200px; /* Updated to match AniList 460x642 aspect ratio (scaled down) */
+  overflow: hidden;
+  position: relative;
+}
+
+.anime-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.anime-thumbnail.no-image {
+  background: #2a2a3e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.no-image-placeholder {
+  font-size: 2rem;
+  color: #666;
+}
+
+.role-card-staff .anime-info {
+  padding: 11px; /* Slightly reduced padding to match smaller text */
+}
+
+.role-card-staff .anime-title {
+  font-size: 0.83rem; /* 8% smaller than 0.9rem */
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #ffffff;
+  line-height: 1.2;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.role-card-staff .staff-role {
+  font-size: 0.74rem; /* 8% smaller than 0.8rem */
+  color: #3db4f2;
+  margin: 0 0 4px 0;
+  font-weight: 500;
+}
+
+.role-card-staff .anime-year {
+  font-size: 0.69rem; /* 8% smaller than 0.75rem */
+  color: #a0a0a0;
+  margin: 0 0 4px 0;
+}
+
+.role-card-staff .anime-score {
+  font-size: 0.69rem; /* 8% smaller than 0.75rem */
+  color: #ffd700;
+  margin: 0 0 4px 0;
+}
+
+.role-card-staff .anime-popularity {
+  font-size: 0.64rem; /* 8% smaller than 0.7rem */
+  color: #888;
+  margin: 0;
+}
+
+/* Staff Tabs */
+.staff-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 20px 0 15px 0;
+  padding-top: 15px;
+  width: 100%;
+  clear: both;
+}
+
+.staff-tab-btn {
+  background: transparent;
+  border: 2px solid #444;
+  color: #ccc;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.staff-tab-btn:hover {
+  border-color: #3db4f2;
+  color: #3db4f2;
+}
+
+.staff-tab-btn.active {
+  background: #3db4f2;
+  border-color: #3db4f2;
+  color: #ffffff;
+}
+
+.staff-tab-btn.active:hover {
+  background: #2a9fd8;
+  border-color: #2a9fd8;
+}
+
+/* Tab count styling - darker/more transparent numbers */
+.tab-count {
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+.staff-tab-btn:hover .tab-count {
+  opacity: 0.8;
+}
+
+.staff-tab-btn.active .tab-count {
+  opacity: 0.85;
+}
+
+.staff-tab-btn.active:hover .tab-count {
+  opacity: 0.9;
+}
+
+/* Studio name display styling for consistency */
+.studio-name-display {
+  color: white;
+  display: block;
+  text-align: center;
+  margin: 4px 0;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+.viewer-layout {
+  gap: 12px;
+}
+
+/* Staffless mode: hide side panels and center trailer */
+body.staffless-mode .side-info,
+body.staffless-mode #studioView,
+body.staffless-mode #staffView {
+  display: none !important;
+}
+body.staffless-mode .viewer-layout {
+  justify-content: center;
+}
+
+/* Small screens: stack viewer column-wise */
+@media (max-width: 900px) {
+  .viewer-layout {
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+  }
+
+  .side-info {
+    width: 100%;
+    height: auto;
+    max-height: 300px;
+  }
+
+  .trailer-container {
+    width: 100%;
+    padding: 0 10px;
+  }
+}
+
+/* Local video player styling should match iframe sizing and positioning */
+#viewerLocal {
+  height: 100%;
+  width: min(90vw, calc(var(--trailer-height) * (16 / 9)) );
+  max-width: 1500px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: black;
+}
+
+/* Reuse .hidden rule to hide video when not used */

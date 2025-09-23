@@ -1,28 +1,967 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20250922.1">
+  <!-- Removed dev override block (no longer needed) -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BLK Trailers</title>
+    <script>
+      // Compact, non-visual reload/navigation guard.
+      // Provides safeReload, safeNavigate and a manual unblock helper without
+      // writing visible overlays or document.write to the page.
+      (function(){
+        const HISTORY_KEY = '__blk_reload_history';
+        const BLOCK_KEY = '__blk_reload_blocked';
+        const SUPER_KEY = '__blk_super_block';
+        try {
+          function recordReloadAttempt(){
+            try {
+              const now = Date.now();
+              const raw = sessionStorage.getItem(HISTORY_KEY) || '[]';
+              let hist = JSON.parse(raw);
+              const WINDOW_MS = 5000; // 5s
+              const MAX_RAPID_RELOADS = 3;
+              hist = hist.filter(ts => now - ts < WINDOW_MS);
+              hist.push(now);
+              sessionStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
+              if (hist.length > MAX_RAPID_RELOADS) {
+                sessionStorage.setItem(BLOCK_KEY, String(now));
+                try { sessionStorage.setItem(SUPER_KEY, '1'); } catch (e){}
+                // Record a compact trace for diagnostics (no DOM writes)
+                try {
+                  const tracesRaw = sessionStorage.getItem('__blk_reload_traces') || '[]';
+                  const traces = JSON.parse(tracesRaw || '[]');
+                  traces.push({ ts: now, stack: (new Error()).stack || 'no-stack' });
+                  while (traces.length > 50) traces.shift();
+                  sessionStorage.setItem('__blk_reload_traces', JSON.stringify(traces));
+                } catch (e) {}
+                return true;
+              }
+            } catch (e) {}
+            return false;
+          }
+
+          function isBlocked(){
+            try {
+              const v = sessionStorage.getItem(BLOCK_KEY);
+              if (!v) return false;
+              const ts = parseInt(v);
+              return Date.now() - ts < 60_000; // 1 minute cooldown
+            } catch (e) { return false; }
+          }
+
+          // Wrap common navigation methods to prevent runaway loops
+          try {
+            const origReload = location.reload.bind(location);
+            location.reload = function(){ if (isBlocked()) return; const became = recordReloadAttempt(); if (became) return; origReload(); };
+            const origAssign = location.assign.bind(location);
+            location.assign = function(url){ if (isBlocked()) return; const became = recordReloadAttempt(); if (became) return; return origAssign(url); };
+            const origReplace = location.replace.bind(location);
+            location.replace = function(url){ if (isBlocked()) return; const became = recordReloadAttempt(); if (became) return; return origReplace(url); };
+          } catch (e) {}
+
+          // Expose helpers used by the app
+          window.safeReload = function(){ try { if (isBlocked()) return; const became = recordReloadAttempt(); if (became) return; try { location.reload(); } catch(e) { try { document.location.reload(); } catch(e2) {} } } catch (e) {} };
+
+          window.safeNavigate = function(opts){
+            try {
+              opts = opts || {};
+              const type = opts.type || 'assign';
+              const url = opts.url || opts.href || opts.u || '';
+              if (!url) return false;
+              if (isBlocked()) return false;
+              try { recordReloadAttempt(); } catch (e) {}
+              if (type === 'assign') { try { location.assign(url); return true; } catch (e) { try { document.location.assign(url); return true; } catch (e2) {} } }
+              if (type === 'replace') { try { location.replace(url); return true; } catch (e) { try { document.location.replace(url); return true; } catch (e2) {} } }
+              if (type === 'href') { try { document.location.href = url; return true; } catch (e) { try { location.href = url; return true; } catch (e2) {} } }
+              if (type === 'open') { try { window.open(url, opts.target || '_blank'); return true; } catch (e) {} }
+            } catch (e) {}
+            return false;
+          };
+
+          window.__blk_unblockReloads = function(){ try { sessionStorage.removeItem(BLOCK_KEY); sessionStorage.removeItem(HISTORY_KEY); sessionStorage.removeItem(SUPER_KEY); console.log('Reload guard: unblocked'); } catch (e) {} };
+
+        } catch (e) { console.warn('Reload guard init failed', e); }
+      })();
+    </script>
 </head>
 <body>
-    <div class="header-bar"></div>
+    <div class="header-bar">
+    <div class="year-select">
+      <select id="yearSelect" onchange="(window._onYearSelectChange||function(v){console.log('inlined year change',v);})(this.value)">
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+            </select>
+        </div>
+        <div class="season-tabs" data-year="2025">
+            <div class="tab active" data-season="Fall">Fall</div>
+        </div>
+  <button id="viewFullListBtn" class="mode-toggle" onclick="(window._onViewFullListClick||function(){console.log('inlined viewFullList click');})()">View Full List</button>
+  <button id="backToViewerBtn" class="mode-toggle hidden" onclick="(window._onBackToViewerClick||function(){console.log('inlined backToViewer click');})()">Back to Trailers</button>
+  <button id="viewScheduleBtn" class="mode-toggle" title="View full release schedule" onclick="try{ window.openScheduleModalGlobal(); }catch(e){ console.warn('openScheduleModalGlobal missing or threw', e); }">View Full Schedule</button>
+    </div>
 
-<h1></h1>
-
-<!-- Season Tabs -->
-<div class="tabs">
-    <div class="tab active" onclick="loadSeason('Summer 2025')">Summer 2025</div>
-    <div class="tab" onclick="loadSeason('Fall 2025')">Fall 2025</div>
-    <div class="tab" onclick="loadSeason('Winter 2026')">Winter 2026</div>
+<!-- Studio View Container (hidden by default) -->
+<div id="studioView" class="hidden">
+  <div class="studio-header">
+    <h2 id="studioName"></h2>
+  </div>
+  
+  <div class="studio-works">
+    <div id="studioAnimeList" class="anime-container">
+      <!-- Studio anime cards will be added dynamically -->
+    </div>
+  </div>
 </div>
 
-<!-- Anime List -->
-<div class="anime-container" id="animeList">
-    <!-- Anime Cards will be added dynamically -->
+<!-- Staff View Container (hidden by default) -->
+<div id="staffView" class="hidden">
+  <div class="staff-header">
+    <h2 id="staffName"></h2>
+  </div>
+  
+  <div class="staff-works">
+    <div id="staffAnimeList" class="anime-container">
+      <!-- Staff anime cards will be added dynamically -->
+    </div>
+  </div>
 </div>
 
-<script src="script.js"></script>
+<!-- Viewer Container -->
+<div id="animeViewer">
+  <!-- Independent header: title + subtitle live here and are visually separate from the trailer layout -->
+  <div class="viewer-header" aria-hidden="false">
+    <div class="viewer-header-inner">
+      <h2 id="viewerTitle"></h2>
+        <div id="viewerSubtitle" class="viewer-subtitle" aria-hidden="false"></div>
+    </div>
+  </div>
+
+  <div class="viewer-layout">
+  <!-- AniList staff info -->
+  <div id="anilistInfo" class="side-info"></div>
+
+  <!-- Trailer video -->
+  <div class="trailer-container">
+    <iframe id="viewerTrailer" frameborder="0" allowfullscreen></iframe>
+    <!-- Local file player: shown when a local file path or File object is provided for a trailer -->
+    <video id="viewerLocal" controls preload="metadata" class="hidden"></video>
+    <!-- Hidden file input to attach a local trailer during runtime (user-selectable) -->
+    <input id="viewerLocalFileInput" type="file" accept="video/*" class="hidden" aria-hidden="true">
+  </div>
+
+
+  <!-- Studio info -->
+  <div id="studioInfo" class="side-info"></div>
+</div>
+
+  <div class="viewer-controls">
+    <button id="prevAnime" class="nav-arrow small left">⟨</button>
+    <div class="show-counter" id="showCounter">1/30</div>
+    <button id="nextAnime" class="nav-arrow small right">⟩</button>
+  </div>
+</div>
+</div>
+</div>
+<!-- Anime List (hidden - only used for data) -->
+<div class="anime-container hidden" id="animeList">
+    <!-- Anime Cards will be added dynamically but hidden -->
+</div>
+
+<!-- Full List Modal -->
+<div id="fullListModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Full Trailer List</h2>
+            <button class="modal-close" id="closeModal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="list-grid" id="fullAnimeGrid">
+                <!-- Anime titles will be populated here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Full Schedule Modal -->
+<div id="fullScheduleModal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Full Release Schedule</h2>
+      <button class="modal-close" id="closeScheduleModal">&times;</button>
+    </div>
+    <div class="modal-body" id="scheduleModalBody">
+      <div class="loading">Loading schedule...</div>
+    </div>
+  </div>
+</div>
+
+<script src="data/anime.js"></script>
+<!-- Ensure animeData is exposed and provide safe defaults before the main script loads -->
+<script>
+  (function(){
+    try {
+      if (typeof animeData !== 'undefined') {
+        // Expose animeData on window for scripts and diagnostics
+        window.animeData = window.animeData || animeData;
+        console.log('📦 Bootstrap: animeData attached to window');
+
+        // If there's no currentSeason set yet, pick the first available season
+        try {
+          const years = Object.keys(animeData).sort();
+          if ((!window.currentSeason && typeof currentSeason === 'undefined') && years.length) {
+            const firstYear = years[0];
+            const firstSeason = Object.keys(animeData[firstYear])[0];
+            if (firstSeason && firstYear) {
+              window.currentSeason = `${firstSeason} ${firstYear}`;
+              console.log('🔧 Bootstrap: set window.currentSeason =', window.currentSeason);
+            }
+          }
+        } catch (e) { /* ignore */ }
+
+        // Try to restore a saved current index (refresh/back navigation survival)
+        (function(){
+          try {
+            const attemptRestore = () => {
+              try {
+                if (typeof restoreAnimeIndexFromReturn === 'function') {
+                  const ok = restoreAnimeIndexFromReturn();
+                  if (ok) { console.log('🔧 Bootstrap: restored currentIndex via restoreAnimeIndexFromReturn ->', window.currentIndex); return; }
+                }
+                // Fallback: try simple viewerIndex saved in sessionStorage/localStorage (set when user clicked an item)
+                try {
+                  const savedViewerSeason = sessionStorage.getItem('viewerSeason') || localStorage.getItem('viewerSeason');
+                  const savedViewerIndex = sessionStorage.getItem('viewerIndex') || localStorage.getItem('viewerIndex');
+                  if (savedViewerIndex !== null && savedViewerSeason === `${window.currentSeason}`) {
+                    const idx = parseInt(savedViewerIndex, 10);
+                    if (!isNaN(idx)) {
+                      window.currentIndex = idx;
+                      console.log('🔧 Bootstrap: restored currentIndex from viewerIndex ->', window.currentIndex);
+                      return;
+                    }
+                  }
+                } catch(e) { /* ignore fallback restore errors */ }
+                // If not restored, ensure a sensible default
+                if (typeof window.currentIndex === 'undefined') {
+                  window.currentIndex = 0;
+                  console.log('🔧 Bootstrap: set window.currentIndex = 0');
+                }
+              } catch (e) {
+                if (typeof window.currentIndex === 'undefined') { window.currentIndex = 0; }
+                console.warn('🔧 Bootstrap restore attempt failed', e);
+              }
+            };
+            // Try immediately and retry shortly in case the function is defined later
+            attemptRestore();
+            setTimeout(attemptRestore, 150);
+            setTimeout(attemptRestore, 400);
+          } catch (e) {
+            if (typeof window.currentIndex === 'undefined') window.currentIndex = 0;
+          }
+        })();
+      } else {
+        console.log('⚠️ Bootstrap: animeData not found');
+      }
+    } catch (e) {
+      console.warn('⚠️ Bootstrap initializer failed:', e);
+    }
+    // Idempotent: Once loadSeason is available, call it once to ensure main app loads the season content
+    try {
+      const tryLoadSeason = () => {
+        try {
+          if (window._bootstrapSeasonLoaded) return;
+          if (typeof loadSeason === 'function') {
+            console.log('🔁 Bootstrap: calling loadSeason for', window.currentSeason);
+            try {
+              loadSeason(window.currentSeason, true);
+            } catch (e) {
+              console.warn('⚠️ Bootstrap: loadSeason call failed:', e);
+            }
+            window._bootstrapSeasonLoaded = true;
+          } else {
+            setTimeout(tryLoadSeason, 150);
+          }
+        } catch (e) { setTimeout(tryLoadSeason, 150); }
+      };
+      setTimeout(tryLoadSeason, 150);
+    } catch (e) {}
+  })();
+</script>
+<!-- Lightweight placeholders to avoid uncaught ReferenceErrors for inline onclicks -->
+<script>
+  try {
+    if (typeof window.testViewer === 'undefined') {
+      window.testViewer = function(index=null) { console.log('🔧 placeholder testViewer called', index); try { if (typeof window.forceShowViewer === 'function') window.forceShowViewer(); } catch(e){} };
+    }
+    if (typeof window.clearSessionStorage === 'undefined') {
+      window.clearSessionStorage = function() { console.log('🔧 placeholder clearSessionStorage called'); try { /* no-op placeholder */ } catch(e){} };
+    }
+  } catch (e) { console.warn('⚠️ Placeholder installers failed:', e); }
+</script>
+<!-- Bootstrapped forwarding for inline header handlers -->
+<script>
+  try {
+    // Year select forwarding
+    if (typeof window._onYearSelectChange === 'undefined') {
+      window._onYearSelectChange = function(year) {
+        console.log('🔧 boot _onYearSelectChange called', year);
+        try { if (typeof updateSeasonTabs === 'function') updateSeasonTabs(year); } catch(e){console.warn('boot forward updateSeasonTabs failed', e);} 
+        try { if (typeof animeData !== 'undefined' && animeData[year]) { const seasons=Object.keys(animeData[year]); if (seasons.length && typeof loadSeason === 'function') loadSeason(seasons[0]+' '+year); } } catch(e){}
+      };
+    }
+
+    // View full list forwarding
+    if (typeof window._onViewFullListClick === 'undefined') {
+      window._onViewFullListClick = function() {
+        console.log('🔧 boot _onViewFullListClick called');
+        try {
+          if (typeof showFullListModal === 'function') {
+            showFullListModal();
+          } else {
+            // Try to populate modal from animeData directly as a fallback
+            try { if (typeof window._populateFullListModal === 'function') window._populateFullListModal(); } catch(e){console.warn('boot populateFullListModal failed',e); }
+            document.getElementById('fullListModal')?.classList.remove('hidden');
+          }
+        } catch(e){console.warn('boot forward showFullListModal failed',e);} 
+      };
+    }
+
+    // Back to viewer forwarding
+    if (typeof window._onBackToViewerClick === 'undefined') {
+      window._onBackToViewerClick = function() {
+        console.log('🔧 boot _onBackToViewerClick called');
+        try { if (typeof showAnimeViewer === 'function') showAnimeViewer(); } catch(e){console.warn('boot forward showAnimeViewer failed',e);} 
+      };
+    }
+  } catch (e) { console.warn('⚠️ Boot forwarding failed:', e); }
+</script>
+    </div>
+<!-- Fallback modal population and close handlers to ensure modal works before main script is ready -->
+<script>
+  try {
+    window._populateFullListModal = function() {
+      try {
+        const modal = document.getElementById('fullListModal');
+        const grid = document.getElementById('fullAnimeGrid');
+        if (!modal || !grid) return;
+        grid.innerHTML = '';
+        const season = window.currentSeason || currentSeason || '';
+        if (!season) {
+          grid.innerHTML = '<div class="no-results"><h3>No season selected</h3></div>';
+          return;
+        }
+        const parts = String(season).split(' ');
+        const seasonName = parts[0];
+        const year = parts[1];
+        const raw = (typeof animeData !== 'undefined' && animeData[year] && animeData[year][seasonName]) ? animeData[year][seasonName] : [];
+        // Only show entries that are NOT mainHidden in the Full List modal
+        const list = (raw || []).filter(a => { try { return String(a.mainHidden || '').toUpperCase() !== 'T'; } catch (e) { return true; } });
+        if (!raw || raw.length === 0) {
+          grid.innerHTML = '<div class="no-results"><h3>No anime found for this season</h3></div>';
+          return;
+        }
+        if (!list || list.length === 0) {
+          grid.innerHTML = '<div class="no-results"><h3>No visible anime found for this season</h3></div>';
+          return;
+        }
+
+        list.forEach((anime, index) => {
+          const item = document.createElement('div');
+          item.className = 'anime-item';
+          item.innerHTML = `<h3>${anime.title || anime.name || 'Untitled'}</h3>`;
+          item.addEventListener('click', () => {
+            try {
+              // Immediate visual feedback: show quick loading overlay so user knows something happened
+              try {
+                if (!document.getElementById('quickLoadingOverlay')) {
+                  const ov = document.createElement('div');
+                  ov.id = 'quickLoadingOverlay';
+                  ov.className = 'loading-overlay';
+                  ov.innerHTML = `<div class="loading-content"><div class="loading-spinner"></div><h2>Loading...</h2><p>Preparing trailer...</p></div>`;
+                  document.body.appendChild(ov);
+                }
+                // mark update in progress to prevent other actions
+                // Do not set viewerUpdateInProgress here - updateViewer() will set it itself.
+              } catch (e) { console.warn('Could not show quick loading overlay', e); }
+              // We're rendering only visible entries, so index maps directly to visible index
+              window.currentIndex = index;
+              // Persist the selected index immediately so refresh stays on this item
+              try { sessionStorage.setItem('viewerIndex', String(window.currentIndex)); sessionStorage.setItem('viewerSeason', window.currentSeason || ''); } catch(e){}
+              try { localStorage.setItem('viewerIndex', String(window.currentIndex)); localStorage.setItem('viewerSeason', window.currentSeason || ''); } catch(e){}
+              if (typeof updateViewer === 'function') updateViewer();
+              if (typeof updateShowCounter === 'function') updateShowCounter();
+              // hide modal
+              const m = document.getElementById('fullListModal'); if (m) m.classList.add('hidden');
+              // After a short delay ensure overlay is removed once updateViewer runs (updateViewer itself will clear when done)
+              setTimeout(() => { try { const q = document.getElementById('quickLoadingOverlay'); if (q) q.remove(); viewerUpdateInProgress = false; window.viewerUpdateInProgress = false; } catch(e){} }, 3500);
+            } catch(e) { console.error('Error handling modal item click', e); }
+          });
+          grid.appendChild(item);
+        });
+      } catch (e) { console.error('populateFullListModal failed', e); }
+    };
+
+    // Ensure close button and backdrop click/hide work immediately
+    (function attachModalCloseHandlers(){
+      try {
+        const closeBtn = document.getElementById('closeModal');
+        const modal = document.getElementById('fullListModal');
+        if (closeBtn) closeBtn.addEventListener('click', () => { try { if (typeof hideFullListModal === 'function') hideFullListModal(); else document.getElementById('fullListModal')?.classList.add('hidden'); } catch(e){document.getElementById('fullListModal')?.classList.add('hidden');} });
+        if (modal) {
+          modal.addEventListener('click', (e) => { if (e.target && e.target.id === 'fullListModal') { try { if (typeof hideFullListModal === 'function') hideFullListModal(); else modal.classList.add('hidden'); } catch(e){ modal.classList.add('hidden'); } } });
+        }
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { try { if (typeof hideFullListModal === 'function') hideFullListModal(); else document.getElementById('fullListModal')?.classList.add('hidden'); } catch(e){ document.getElementById('fullListModal')?.classList.add('hidden'); } } });
+      } catch(e) { console.warn('attachModalCloseHandlers failed', e); }
+    })();
+  } catch (e) { console.warn('Modal fallback installer failed', e); }
+</script>
+<!-- Safety: ensure viewerUpdateInProgress exists on window before any early calls -->
+<script>
+  try {
+    if (typeof window.viewerUpdateInProgress === 'undefined') {
+      window.viewerUpdateInProgress = false;
+      // also mirror as a global var for code that reads direct globals
+      try { viewerUpdateInProgress = false; } catch (e) {}
+      console.log('🔧 Bootstrap safety: initialized viewerUpdateInProgress on window');
+    }
+  } catch (e) { console.warn('⚠️ Failed to safely initialize viewerUpdateInProgress:', e); }
+</script>
+<!-- Safety placeholders for other globals referenced during early bootstrap -->
+<script>
+  try {
+    if (typeof window.lastAnimeId === 'undefined') {
+      window.lastAnimeId = null;
+      try { lastAnimeId = null; } catch (e) {}
+      console.log('🔧 Bootstrap safety: initialized lastAnimeId on window');
+    }
+
+    if (typeof window.updateShowCounter !== 'function') {
+      window.updateShowCounter = function() {
+        try {
+          const counter = document.getElementById('showCounter');
+          const season = typeof currentSeason !== 'undefined' ? currentSeason : window.currentSeason;
+          const idx = (typeof currentIndex !== 'undefined' ? currentIndex : (window.currentIndex || 0)) || 0;
+          if (!season || typeof animeData === 'undefined') {
+            if (counter) counter.textContent = '';
+            return;
+          }
+          const [sName, sYear] = season.split(' ');
+          const raw = animeData[sYear] && animeData[sYear][sName] ? animeData[sYear][sName] : [];
+          const list = (raw || []).filter(a => { try { return String(a.mainHidden || '').toUpperCase() !== 'T'; } catch (e) { return true; } });
+          if (counter) counter.textContent = `${(idx||0)+1}/${list.length || 0}`;
+        } catch (e) { /* silent fallback */ }
+      };
+      console.log('🔧 Bootstrap safety: installed placeholder updateShowCounter');
+    }
+  } catch (e) { console.warn('⚠️ Bootstrap safety placeholders failed:', e); }
+</script>
+<script>
+  try {
+    if (typeof window.requestIdCounter === 'undefined') {
+      window.requestIdCounter = 0;
+      try { requestIdCounter = 0; } catch (e) {}
+      console.log('🔧 Bootstrap safety: initialized requestIdCounter on window');
+    }
+  } catch (e) { console.warn('⚠️ Failed to initialize requestIdCounter:', e); }
+</script>
+<script>
+  // Persist viewer index/season on unload so refresh keeps the same item
+  (function(){
+    try {
+      window.addEventListener('beforeunload', function(){
+        try {
+          if (typeof currentIndex !== 'undefined') {
+            sessionStorage.setItem('viewerIndex', String(currentIndex));
+            localStorage.setItem('viewerIndex', String(currentIndex));
+          }
+          if (typeof currentSeason !== 'undefined') {
+            sessionStorage.setItem('viewerSeason', String(currentSeason));
+            localStorage.setItem('viewerSeason', String(currentSeason));
+          }
+        } catch(e) { /* ignore write errors */ }
+      });
+      console.log('🔧 Installed beforeunload persistence for viewerIndex/viewerSeason');
+    } catch(e) { console.warn('⚠️ Failed to install persistence handler', e); }
+  })();
+</script>
+<!-- Dynamically position the viewer header so it never overlaps the top header-bar -->
+<script>
+  (function(){
+    function repositionViewerHeader(){
+      try {
+        const topBar = document.querySelector('.header-bar');
+        const viewerHeader = document.querySelector('.viewer-header');
+        const animeViewer = document.getElementById('animeViewer');
+        if (!viewerHeader || !animeViewer) return;
+        const topBarRect = topBar ? topBar.getBoundingClientRect() : { height: 0, bottom: 0 };
+  // Slightly larger gap to prevent subtitle overlap with the trailer area.
+  const gap = 14; // increased from 8
+  const desiredTop = Math.ceil(topBarRect.bottom + gap);
+  viewerHeader.style.top = desiredTop + 'px';
+  // Prefer the CSS-controlled header height so dynamic subtitle content
+  // won't inflate calculated paddingTop. Fallback to 96 if CSS var not available.
+  let headerHeight = 96;
+  try {
+    const computed = window.getComputedStyle(viewerHeader || document.documentElement).getPropertyValue('--viewer-header-height');
+    if (computed) headerHeight = parseInt(computed, 10) || headerHeight;
+  } catch (e) {}
+        // Add a small extra clearance to ensure subtitles never touch the trailer.
+  const extraClearance = 6;
+        // Reserve space for the viewer header (title + subtitle). Do NOT add
+        // any trailer-derived offset here — that caused the trailer to be pushed
+        // down when subtitles changed length.
+        animeViewer.style.paddingTop = (desiredTop + headerHeight + extraClearance) + 'px';
+      } catch (e) { /* silent */ }
+    }
+    window.addEventListener('load', () => { setTimeout(repositionViewerHeader, 50); });
+    window.addEventListener('resize', () => { setTimeout(repositionViewerHeader, 50); });
+    try { window.repositionViewerHeader = repositionViewerHeader; } catch (e) {}
+  })();
+</script>
+<!-- Safe placeholder for loadingStateMonitor (no-op) to avoid early ReferenceErrors -->
+<script>
+  try {
+    if (typeof window.loadingStateMonitor === 'undefined') {
+      window.loadingStateMonitor = (function(){
+        const monitors = {};
+        return {
+          loadingStates: {},
+          startMonitoring(containerId, animeId, type) { try { this.loadingStates[containerId] = { animeId, type, started: Date.now() }; } catch(e){} },
+          stopMonitoring(containerId, animeId, type) { try { delete this.loadingStates[containerId]; } catch(e){} },
+          clearAllMonitoring() { try { this.loadingStates = {}; } catch(e){} },
+          recoverStuckLoading(containerId, animeId, type) { try { console.log('🔧 Placeholder loadingStateMonitor.recoverStuckLoading', containerId, animeId, type); } catch(e){} },
+          getActiveMonitors() { try { return Object.keys(this.loadingStates); } catch(e){ return []; } }
+        };
+      })();
+      console.log('🔧 Bootstrap safety: installed placeholder loadingStateMonitor');
+    }
+  } catch (e) { console.warn('⚠️ Failed to install loadingStateMonitor placeholder:', e); }
+</script>
+<!-- Bootstrap debug helpers so console debugging works even if script.new.js hasn't initialized -->
+<script>
+  (function(){
+    if (!window.debugUIState || typeof window.debugUIState !== 'function') {
+      window.debugUIState = function() {
+        console.log('🔧 debugUIState (bootstrap placeholder) - script.new.js may not be initialized yet.');
+        try {
+          const animeViewer = document.getElementById('animeViewer');
+          const studioView = document.getElementById('studioView');
+          const staffView = document.getElementById('staffView');
+          console.log('🔍 Elements present:', {
+            animeViewer: !!animeViewer,
+            studioView: !!studioView,
+            staffView: !!staffView
+          });
+          if (animeViewer) {
+            console.log('🔍 animeViewer classes:', animeViewer.className, 'style.display=', animeViewer.style.display, 'visibility=', animeViewer.style.visibility);
+          }
+        } catch (e) {
+          console.warn('⚠️ debugUIState placeholder failed:', e);
+        }
+      };
+    }
+
+    if (!window.forceShowViewer || typeof window.forceShowViewer !== 'function') {
+      window.forceShowViewer = function() {
+        console.log('🔧 forceShowViewer (bootstrap placeholder) - attempting to reveal viewer');
+        try {
+          const animeViewer = document.getElementById('animeViewer');
+          const studioView = document.getElementById('studioView');
+          const staffView = document.getElementById('staffView');
+          if (animeViewer) {
+            animeViewer.classList.remove('hidden');
+            animeViewer.style.display = '';
+            animeViewer.style.visibility = 'visible';
+            animeViewer.style.zIndex = '100002';
+            animeViewer.style.pointerEvents = 'auto';
+            console.log('✅ Placeholder: animeViewer revealed');
+          } else {
+            console.warn('animeViewer not found');
+          }
+          if (studioView) studioView.classList.add('hidden');
+          if (staffView) staffView.classList.add('hidden');
+        } catch (e) {
+          console.warn('⚠️ forceShowViewer placeholder failed:', e);
+        }
+      };
+    }
+    // UI diagnostics helper to test nav buttons and data presence
+    if (!window.uiDiagnostics || typeof window.uiDiagnostics !== 'function') {
+      window.uiDiagnostics = function() {
+        try {
+          console.log('🧭 uiDiagnostics: Checking core UI state...');
+          // Check for functions/vars both as window properties and as direct globals
+          console.log('  - updateViewer (window):', typeof window.updateViewer);
+          console.log('  - updateViewer (global):', typeof updateViewer);
+
+          console.log('  - currentIndex (window):', typeof window.currentIndex !== 'undefined' ? window.currentIndex : 'undefined');
+          console.log('  - currentIndex (global):', typeof currentIndex !== 'undefined' ? currentIndex : 'undefined');
+
+          console.log('  - currentSeason (window):', window.currentSeason || 'not set');
+          console.log('  - currentSeason (global):', typeof currentSeason !== 'undefined' ? currentSeason : 'not set');
+
+          // animeData may be declared as a global const/let (not on window). Check both.
+          console.log('  - animeData (window):', !!window.animeData);
+          console.log('  - animeData (global):', typeof animeData !== 'undefined');
+          try {
+            if (typeof animeData !== 'undefined' && (typeof currentSeason !== 'undefined')) {
+              const [sName, sYear] = currentSeason.split(' ');
+              const list = animeData[sYear] && animeData[sYear][sName] ? animeData[sYear][sName] : [];
+              console.log('  - current season list length:', list.length);
+            }
+          } catch (e) {}
+
+          const prev = document.getElementById('prevAnime');
+          const next = document.getElementById('nextAnime');
+          console.log('  - prev button present:', !!prev, ' next button present:', !!next);
+
+          // Try dispatching click events to see if handlers run (handlers log messages)
+          if (prev) {
+            console.log('🧪 Dispatching click on prev button...');
+            prev.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+          }
+          if (next) {
+            console.log('🧪 Dispatching click on next button...');
+            next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+          }
+          console.log('🧭 uiDiagnostics complete');
+        } catch (e) {
+          console.warn('⚠️ uiDiagnostics failed:', e);
+        }
+      };
+    }
+  })();
+</script>
+<script src="script.new.js"></script>
+<!-- queued-populate shim: if populateScheduleModalGlobal isn't defined yet, queue the container so script.new.js can flush it later -->
+<script>
+  try {
+    if (typeof window.populateScheduleModalGlobal !== 'function') {
+      window.__queuedPopulateContainer = null;
+      window.__queuedPopulate = false;
+      window.populateScheduleModalGlobal = function(container) {
+        try { window.__queuedPopulateContainer = container; window.__queuedPopulate = true; console.log('shim: queued populateScheduleModalGlobal'); } catch(e){}
+      };
+    }
+  } catch(e) { console.warn('failed to install queued-populate shim', e); }
+</script>
+<!-- Placeholder shim: ensure openScheduleModalGlobal is a function early so inline onclicks won't see a non-function value. script.new.js will overwrite this with the full implementation when it runs. -->
+<script>
+  try {
+    if (typeof window.openScheduleModalGlobal !== 'function') {
+      window.openScheduleModalGlobal = function() {
+        console.log('🔧 placeholder openScheduleModalGlobal invoked - showing schedule modal (shim)');
+        try {
+          const modal = document.getElementById('fullScheduleModal');
+          const body = document.getElementById('scheduleModalBody');
+          if (modal) {
+            modal.classList.remove('hidden');
+            try { window.__scheduleOpenedEarly = true; } catch(e) {}
+          }
+              if (typeof window.populateScheduleModalGlobal === 'function' && body) {
+                    try { console.log('placeholder calling populateScheduleModalGlobal with body:', body); window.populateScheduleModalGlobal(body); } catch(e) { console.warn('placeholder populateScheduleModalGlobal threw', e); }
+                    // If the real populator doesn't populate quickly, fall back to a lightweight renderer.
+                    try {
+                      setTimeout(function(){
+                        try {
+                          if (body && body.querySelector('.loading')) {
+                            // still showing loading, use shim renderer
+                            shimRenderSchedule(body);
+                          }
+                        } catch(e){}
+                      }, 120);
+                    } catch(e){}
+              } else if (body) {
+                        body.innerHTML = '<div class="no-results"><h3>No local release dates available</h3><p>All shows will appear in the schedule — undated shows will be placed under TBA.</p></div>';
+              }
+              try {
+                // attach lightweight close handlers if main script hasn't attached them yet
+                if (modal && !modal._scheduleShimAttached) {
+                  const closeBtn = document.getElementById('closeScheduleModal');
+                  if (closeBtn) {
+                    closeBtn.addEventListener('click', function _shimClose(){ try{ modal.classList.add('hidden'); } catch(e){} });
+                  }
+                  modal.addEventListener('click', function _shimBackdrop(e){ try{ if (e.target && e.target.id === 'fullScheduleModal') modal.classList.add('hidden'); } catch(e){} });
+                  const escHandler = function(e){ try{ if (e.key === 'Escape') modal.classList.add('hidden'); } catch(ex){} };
+                  document.addEventListener('keydown', escHandler);
+                  // mark attached so we don't double attach
+                  modal._scheduleShimAttached = true;
+                }
+              } catch(e) { console.warn('failed to attach schedule shim close handlers', e); }
+        } catch(e) { console.warn('placeholder openScheduleModalGlobal failed', e); }
+      };
+      console.log('🔧 Bootstrap: installed placeholder openScheduleModalGlobal (modal shim)');
+    }
+  } catch (e) { console.warn('⚠️ Failed to install openScheduleModalGlobal placeholder', e); }
+</script>
+<script>
+  // Lightweight shim renderer used as fallback when main script isn't populating the modal.
+  function shimParseDate(s) {
+    if (!s) return null;
+    s = String(s).trim();
+    // Prefer explicit DD/MM/YYYY first (avoid US MM/DD ambiguity)
+    const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[ T](.*))?$/);
+    if (m) {
+      const day = parseInt(m[1],10); const month = parseInt(m[2],10)-1; const year = parseInt(m[3],10);
+      const d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) return d;
+    }
+    const iso = Date.parse(s);
+    if (!isNaN(iso)) return new Date(iso);
+    const alt = Date.parse(s.replace(/\//g,'-'));
+    if (!isNaN(alt)) return new Date(alt);
+    return null;
+  }
+
+  function shimRenderSchedule(container) {
+    try {
+      if (!container) return;
+      container.innerHTML = '';
+      const data = (window.animeData) ? window.animeData : (typeof animeData !== 'undefined' ? animeData : {});
+      // Ensure every anime object has a scheduleinfo property for consistent rendering
+      try {
+        if (data && typeof data === 'object') {
+          Object.keys(data).forEach(year => {
+            Object.keys(data[year] || {}).forEach(season => {
+              (data[year][season] || []).forEach(anime => {
+                if (typeof anime.scheduleinfo === 'undefined') {
+                  anime.scheduleinfo = anime.scheduleInfo || anime.schedule_note || anime.meta || anime.subtitle || '';
+                }
+              });
+            });
+          });
+        }
+      } catch(e) { /* ignore normalizer errors */ }
+      const groups = new Map();
+      const tba = [];
+      // Determine current season filter (e.g., 'Fall 2025')
+      const currentSeasonStr = (typeof window !== 'undefined' && window.currentSeason) ? window.currentSeason : (typeof currentSeason !== 'undefined' ? currentSeason : null);
+      let filterYear = null, filterSeason = null;
+      if (currentSeasonStr && typeof currentSeasonStr === 'string') {
+        const parts = currentSeasonStr.split(' ');
+        if (parts.length >= 2) { filterSeason = parts[0]; filterYear = parts[1]; }
+      }
+      if (!filterYear || !filterSeason) {
+        container.innerHTML = '<div class="no-results"><h3>No season selected</h3><p>Select a season (top-left) to view its schedule.</p></div>';
+        return;
+      }
+      const list = (data[filterYear] && data[filterYear][filterSeason]) ? data[filterYear][filterSeason] : [];
+      for (const a of (list || [])) {
+        const raw = a.releaseDate || a.release_date || a.release || null;
+        const parsed = shimParseDate(raw);
+        if (parsed) {
+          const key = parsed.toISOString().slice(0,10);
+          if (!groups.has(key)) groups.set(key, { date: parsed, items: [] });
+          const scheduleMessage = a.scheduleinfo || a.scheduleInfo || a.schedule_note || a.meta || a.subtitle || '';
+          groups.get(key).items.push({ title: a.title || a.name || 'Untitled', season: filterSeason, year: filterYear, link: a.staffLink || a.link || '', scheduleMessage, _source: a });
+        } else {
+          const scheduleMessage = a.scheduleinfo || a.scheduleInfo || a.schedule_note || a.meta || a.subtitle || '';
+          tba.push({ title: a.title || a.name || 'Untitled', season: filterSeason, year: filterYear, link: a.staffLink || a.link || '', scheduleMessage, _source: a });
+        }
+      }
+      const keys = Array.from(groups.keys()).sort((a,b)=>new Date(a)-new Date(b));
+      const grid = document.createElement('div'); grid.className='schedule-grid';
+      keys.forEach(k=>{
+        const g = groups.get(k); const col = document.createElement('div'); col.className='schedule-column';
+        const header = document.createElement('div'); header.className='schedule-date-header';
+        try {
+          const weekday = g.date.toLocaleDateString(undefined, { weekday: 'short' });
+          const month = g.date.toLocaleDateString(undefined, { month: 'short' });
+          const dayNum = g.date.getDate();
+          header.textContent = `${weekday} ${month} ${dayNum}`;
+        } catch (e) { header.textContent = g.date.toDateString(); }
+        col.appendChild(header);
+        const list = document.createElement('div'); list.className='schedule-items';
+  g.items.forEach(it=>{ const item=document.createElement('div'); item.className='schedule-item'; const title=document.createElement('div'); title.className='schedule-item-title'; if (it.link){ const a=document.createElement('a'); a.href=it.link; a.target='_blank'; a.rel='noopener'; a.textContent=it.title; title.appendChild(a); } else title.textContent=it.title; const meta=document.createElement('div'); meta.className='schedule-item-meta'; meta.textContent = (it.scheduleMessage && String(it.scheduleMessage).trim()) ? String(it.scheduleMessage) : (typeof scheduleinfo !== 'undefined' ? scheduleinfo : `${it.season} ${it.year}`); item.appendChild(title); item.appendChild(meta); list.appendChild(item); });
+        col.appendChild(list); grid.appendChild(col);
+      });
+      if (tba.length>0) {
+  const col = document.createElement('div'); col.className='schedule-column tba-column'; const header = document.createElement('div'); header.className='schedule-date-header'; header.textContent='TBA'; col.appendChild(header); const list=document.createElement('div'); list.className='schedule-items'; tba.forEach(it=>{ const item=document.createElement('div'); item.className='schedule-item'; const title=document.createElement('div'); title.className='schedule-item-title'; if (it.link){ const a=document.createElement('a'); a.href=it.link; a.target='_blank'; a.rel='noopener'; a.textContent=it.title; title.appendChild(a); } else title.textContent=it.title; const meta=document.createElement('div'); meta.className='schedule-item-meta'; meta.textContent = (it.scheduleMessage && String(it.scheduleMessage).trim()) ? String(it.scheduleMessage) : (typeof scheduleinfo !== 'undefined' ? scheduleinfo : `${it.season} ${it.year}`); item.appendChild(title); item.appendChild(meta); list.appendChild(item); }); col.appendChild(list); grid.appendChild(col);
+      }
+      container.appendChild(grid);
+    } catch(e) { console.warn('shimRenderSchedule failed', e); }
+  }
+</script>
+<!-- Fallback navigation handlers (idempotent) -->
+<script>
+  (function(){
+    try {
+      function attachFallbackNav() {
+        const prev = document.getElementById('prevAnime');
+        const next = document.getElementById('nextAnime');
+
+        const makeHandler = (dir) => {
+          return function fallbackNavHandler(e) {
+            try {
+              // Handler runs on every click; attachment-time flags prevent double-attach
+
+              console.log('🛠️ Fallback nav handler invoked (dir=' + dir + ')');
+              // Cancel any active staff requests if present
+              if (window.activeStaffRequests && window.activeStaffRequests.size) {
+                for (const [id, controller] of activeStaffRequests.entries()) {
+                  try { controller.abort(); } catch (e) {}
+                  activeStaffRequests.delete(id);
+                }
+              }
+
+              const season = typeof currentSeason !== 'undefined' ? currentSeason : window.currentSeason;
+              const [seasonName, year] = (season || '').split(' ');
+              const rawList = (typeof animeData !== 'undefined' && animeData[year] && animeData[year][seasonName]) ? animeData[year][seasonName] : [];
+              if (!rawList || rawList.length === 0) { console.log('🛠️ Fallback nav: no season data available'); return; }
+              // Build visible list (exclude schedule-only entries with mainHidden === 'T')
+              const list = (rawList || []).filter(a => { try { return String(a.mainHidden || '').toUpperCase() !== 'T'; } catch (e) { return true; } });
+              if (!list || list.length === 0) { console.log('🛠️ Fallback nav: no visible anime available for navigation'); return; }
+
+              let newIndex = typeof currentIndex !== 'undefined' ? currentIndex : window.currentIndex || 0;
+              if (dir === 'next') newIndex = (newIndex + 1) % list.length;
+              else newIndex = (newIndex - 1 + list.length) % list.length;
+
+              if (newIndex === 0) {
+                try { sessionStorage.setItem('allowNavigationToZero', 'true'); } catch (e) {}
+              }
+
+                            if (typeof currentIndex !== 'undefined') currentIndex = newIndex; else window.currentIndex = newIndex;
+                            console.log('🛠️ Fallback nav set currentIndex ->', newIndex);
+
+                            // Ensure the main app performs a full staff/studio reload when using fallback nav
+                            try {
+                              // Clear lastAnimeId so updateViewer doesn't think it's the same anime
+                              try { lastAnimeId = null; } catch (e) { try { window.lastAnimeId = null; } catch (e) {} }
+                              // Set force reload flags consumed by updateViewer
+                              try { sessionStorage.setItem('forceStaffReload', 'true'); sessionStorage.setItem('forceStudioReload', 'true'); } catch (e) {}
+                            } catch (e) { console.warn('🛠️ Could not set force reload flags:', e); }
+
+                            // Immediately update visible UI using safe fallback
+                            try { if (typeof window.populateViewerFromData === 'function') window.populateViewerFromData(); } catch (e) { console.warn('🛠️ populateViewerFromData missing', e); }
+
+              // Defer calling into updateViewer/updateShowCounter if internal state isn't initialized
+              const callUpdateFunctions = () => {
+                try { if (typeof updateViewer === 'function') updateViewer(); } catch (e) { console.warn('🛠️ updateViewer missing or threw', e); }
+                try { if (typeof updateShowCounter === 'function') updateShowCounter(); } catch (e) {}
+                try { if (typeof saveAnimeIndexForReturn === 'function') saveAnimeIndexForReturn(); } catch (e) {}
+              };
+
+              // Best-effort: try calling immediately and schedule retries to ensure the main app updates
+              try { callUpdateFunctions(); } catch (e) { console.warn('🛠️ Immediate scheduled update failed', e); }
+              setTimeout(callUpdateFunctions, 50);
+              setTimeout(callUpdateFunctions, 300);
+
+              // Also keep the appReady poll as a fallback
+              const waitForAppReady = () => {
+                if (window.appReady) {
+                  try { callUpdateFunctions(); } catch (e) { console.warn('🛠️ Scheduled update failed after app ready', e); }
+                } else {
+                  // Poll until appReady becomes true
+                  setTimeout(waitForAppReady, 150);
+                }
+              };
+
+              waitForAppReady();
+            } catch (e) { console.warn('🛠️ Fallback nav handler error:', e); }
+          };
+        };
+
+        // Only attach fallback handlers if there are no existing click listeners
+        // The main script sets handlers during initialization; double-attaching
+        // could cause multiple index increments per click.
+        try {
+          const hasMainHandlers = (prev && prev._mainHandlerAttached) || (next && next._mainHandlerAttached);
+          if (!hasMainHandlers) {
+            if (prev && !prev._hasAnyHandler) {
+              prev.addEventListener('click', makeHandler('prev'));
+              prev._hasAnyHandler = true;
+              console.log('🛠️ Attached fallback prev handler');
+            }
+            if (next && !next._hasAnyHandler) {
+              next.addEventListener('click', makeHandler('next'));
+              next._hasAnyHandler = true;
+              console.log('🛠️ Attached fallback next handler');
+            }
+          } else {
+            console.log('🛠️ Skipping fallback nav attachment because main handlers exist');
+          }
+        } catch (e) { console.warn('🛠️ Error checking main handler presence', e); }
+      }
+
+      // Try to attach once DOM is ready. If DOM already loaded, attach immediately.
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', attachFallbackNav);
+      else attachFallbackNav();
+    } catch (e) { console.warn('🛠️ Could not attach fallback nav handlers:', e); }
+  })();
+</script>
+<!-- Safe UI population fallback: updates viewer title/trailer/counter directly from animeData/currentIndex -->
+<script>
+  (function(){
+    function populateViewerFromData() {
+      try {
+        const season = typeof currentSeason !== 'undefined' ? currentSeason : window.currentSeason;
+        const idx = typeof currentIndex !== 'undefined' ? currentIndex : window.currentIndex || 0;
+        if (!season || typeof animeData === 'undefined') return false;
+        const [seasonName, year] = season.split(' ');
+  const rawList = animeData[year] && animeData[year][seasonName] ? animeData[year][seasonName] : [];
+  // Respect per-entry mainHidden flag: entries with mainHidden === 'T' are omitted from the main viewer
+  const list = (rawList || []).filter(a => { try { return String(a.mainHidden || '').toUpperCase() !== 'T'; } catch (e) { return true; } });
+  if (!list || list.length === 0) return false;
+
+  const anime = list[idx] || list[0];
+        const titleEl = document.getElementById('viewerTitle');
+        const trailerEl = document.getElementById('viewerTrailer');
+        const counterEl = document.getElementById('showCounter');
+
+        if (titleEl) {
+          // Safely update the viewer title and subtitle into the independent header
+          try {
+            // Clear previous content
+            while (titleEl.firstChild) titleEl.removeChild(titleEl.firstChild);
+            // Insert title text only (subtitle is rendered separately below the trailer)
+            const titleText = document.createElement('span');
+            titleText.className = 'viewer-title-text';
+            titleText.textContent = anime.title || anime.name || 'Untitled';
+            titleEl.appendChild(titleText);
+            // Populate the independent subtitle container (if present)
+            try {
+              const subtitleContainer = document.getElementById('viewerSubtitle');
+              if (subtitleContainer) {
+                if (anime.subtitle) subtitleContainer.textContent = anime.subtitle;
+                else subtitleContainer.textContent = '';
+              }
+            } catch (e) { /* ignore subtitle failures */ }
+          } catch (e) {
+            // Fallback: last-resort innerHTML assignment (title only) and populate subtitle container
+            try { titleEl.innerHTML = `${anime.title || anime.name || 'Untitled'}`; } catch (e2) {}
+            try { const subtitleContainer = document.getElementById('viewerSubtitle'); if (subtitleContainer) subtitleContainer.textContent = anime.subtitle || ''; } catch (e3) {}
+          }
+        }
+        if (trailerEl) trailerEl.src = anime.trailer || '';
+        if (counterEl) counterEl.textContent = `${(idx||0)+1}/${list.length}`;
+
+        console.log('🛡️ Fallback populated viewer from data:', anime.title, `index=${idx}`);
+        return true;
+      } catch (e) {
+        console.warn('🛡️ populateViewerFromData failed:', e);
+        return false;
+      }
+    }
+
+    // Try immediately
+    // Expose for fallback handlers
+  try { window.populateViewerFromData = populateViewerFromData; } catch (e) {}
+  populateViewerFromData();
+  try { if (typeof window.repositionViewerHeader === 'function') { window.repositionViewerHeader(); } } catch(e) {}
+
+    // Also attempt again once appReady to ensure consistent state
+    const waitForApp = () => {
+      if (window.appReady) {
+        populateViewerFromData();
+        try { if (typeof window.repositionViewerHeader === 'function') { window.repositionViewerHeader(); } } catch(e) {}
+      } else {
+        setTimeout(waitForApp, 200);
+      }
+    };
+    waitForApp();
+  })();
+</script>
+
 </body>
 </html>
