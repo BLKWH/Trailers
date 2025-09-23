@@ -372,8 +372,8 @@ const animeData = {
                 "title": "Blue Orchestra Season 2",
                 "scheduleinfo": "TBA",
                 "subtitle": "",
-                "trailer": "",
-                "localTrailer": "local-media/blue-orchestra-s2.mp4",
+                "trailer": "https://player.vimeo.com/video/1121266567",
+                "localTrailer": "",
                 "staffLink": "https://anilist.co/anime/170018/Ao-no-Orchestra-2nd-Season/staff",
                 "annId": "30218",
                 "releaseDate": "05/10/2025"
