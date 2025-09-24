@@ -446,7 +446,7 @@ const animeData = {
             {
                 "title": "Tojima Wants To Be A Kamen Rider",
                 "scheduleinfo": "Crunchyroll",
-                "subtitle": "",
+                "subtitle": "02 Cours",
                 "trailer": "https://www.youtube.com/embed/i-Y-Fqt8swo?si=yyMzGUNBfGEZ-Nst",
                 "staffLink": "https://anilist.co/anime/187464/Toujima-Tanzaburou-wa-Kamen-Rider-ni-Naritai/staff",
                 "annId": "35007",
