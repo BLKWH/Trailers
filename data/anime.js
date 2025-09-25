@@ -38,7 +38,7 @@ const animeData = {
             {
                 "title": "To Your Eternity Season 3",
                 "scheduleinfo": "Crunchyroll",
-                "subtitle": "",
+                "subtitle": "02 Cours",
                 "trailer": "https://www.youtube.com/embed/aY2emITP8F4?si=NB93OAL_dLeWzqTh",
                 "staffLink": "https://anilist.co/anime/162669/To-Your-Eternity-Season-3/staff",
                 "annId": "27347",
