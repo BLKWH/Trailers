@@ -8,7 +8,7 @@ const animeData = {
         "Fall": [
             {
                 "title": "One-Punch Man Season 3",
-                "scheduleinfo": "Hulu (US)",
+                "scheduleinfo": "Hulu/Disney+ (US)",
                 "subtitle": "",
                 "mainHidden": "T",
                 "trailer": "",
