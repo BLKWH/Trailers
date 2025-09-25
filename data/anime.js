@@ -39,7 +39,7 @@ const animeData = {
                 "title": "To Your Eternity Season 3",
                 "scheduleinfo": "Crunchyroll",
                 "subtitle": "",
-                "trailer": "https://www.youtube.com/embed/7J1WVEF3G2g?si=O0aibn9EbR32waLp",
+                "trailer": "https://www.youtube.com/embed/aY2emITP8F4?si=NB93OAL_dLeWzqTh",
                 "staffLink": "https://anilist.co/anime/162669/To-Your-Eternity-Season-3/staff",
                 "annId": "27347",
                 "releaseDate": "04/10/2025"
@@ -335,7 +335,7 @@ const animeData = {
          {
                 "title": "Don't touch Kotesashi",
                 "scheduleinfo": "OceanVeil",
-                "subtitle": "Half-Length Episodes",
+                "subtitle": "15-min time slot",
                 "trailer": "https://www.youtube.com/embed/vJIPNYKDBxk?si=DMUaKPyHHMuFt6t8",
                 "staffLink": "https://anilist.co/anime/187331/Sawaranaide-Kotesashi-kun/staff",
                 "annId": "34933",
